@@ -33,7 +33,9 @@ def download_reel():
             "outtmpl": output_path,
             "format": "mp4/best", # simplify format to avoid merging needs
             "quiet": True,
-            "noplaylist": True
+            "noplaylist": True,
+            "cachedir": "/tmp", # Force cache to writable directory
+            "source_address": "0.0.0.0" # Force IPv4 to avoid IPv6 issues on some serverless envs
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
