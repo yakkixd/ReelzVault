@@ -5,36 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InstaReelz</title>
     <link rel="icon" type="image/x-icon" href="favi.ico">
-    <!-- Tailwind CSS -->
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- Google Fonts: Inter for professional UI -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
     
     <style>
+        :root {
+            --font-main: 'Inter', sans-serif;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-main);
             margin: 0;
             overflow: hidden;
             background-color: #ffffff;
             color: #0f172a;
         }
 
-        /* 3D Canvas */
-        #canvas-container {
+        /* Bg Canvas */
+        #bg-canvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             z-index: 0;
         }
 
-        /* Main UI Layer */
-        #ui-layer {
+        /* Layout */
+        #app-mount {
             position: relative;
             z-index: 10;
             width: 100%;
@@ -45,8 +43,8 @@
             pointer-events: none;
         }
 
-        /* Professional Card */
-        .pro-card {
+        /* Components */
+        .glass-panel {
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
@@ -57,28 +55,23 @@
             transition: transform 0.3s ease;
         }
 
-        /* Pro Input */
-        .pro-input {
+        .input-field {
             background: #ffffff;
             border: 1px solid #e2e8f0;
             color: #0f172a;
             transition: all 0.2s ease;
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-main);
             border-radius: 12px;
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
-        .pro-input:focus {
-            background: #ffffff;
+        
+        .input-field:focus {
             outline: none;
             border-color: #000000;
             box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
         }
-        .pro-input::placeholder {
-            color: #94a3b8;
-        }
 
-        /* Pro Button */
-        .btn-pro {
+        .action-btn {
             background: #000000;
             color: #ffffff;
             border: 1px solid #000000;
@@ -87,23 +80,24 @@
             letter-spacing: -0.01em;
             border-radius: 12px;
         }
-        .btn-pro:hover {
+        
+        .action-btn:hover {
             background: #222222;
             transform: translateY(-1px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
-        .btn-pro:active {
-            transform: translateY(0);
-        }
-        .btn-pro:disabled {
+        
+        .action-btn:active { transform: translateY(0); }
+        
+        .action-btn:disabled {
             background: #555;
             border-color: #555;
             cursor: not-allowed;
             transform: none;
         }
 
-        /* Modern Loader */
-        .loader {
+        /* Utils */
+        .spinner {
             width: 20px;
             height: 20px;
             border: 2px solid #e2e8f0;
@@ -111,34 +105,34 @@
             border-radius: 50%;
             display: inline-block;
             box-sizing: border-box;
-            animation: rotation 1s linear infinite;
+            animation: spin 1s linear infinite;
         }
 
-        @keyframes rotation {
+        @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
 
-        @keyframes fadeIn {
+        .animate-in {
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideUp {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .fade-in {
-            animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
 
-        /* Confetti Styles from previous code */
-        .confetti {
+        .confetti-piece {
             position: fixed;
             width: 8px;
             height: 8px;
             background: black;
             top: -10px;
             z-index: 50;
-            animation: fall 1.5s linear forwards;
+            animation: confetti-fall 1.5s linear forwards;
         }
 
-        @keyframes fall {
+        @keyframes confetti-fall {
             to {
                 transform: translateY(110vh) rotate(720deg);
                 opacity: 0;
@@ -148,16 +142,12 @@
 </head>
 <body class="selection:bg-black selection:text-white">
 
-    <!-- 3D Background -->
-    <div id="canvas-container"></div>
+    <div id="bg-canvas"></div>
 
-    <!-- Main UI Layer -->
-    <div id="ui-layer" class="px-4">
+    <div id="app-mount" class="px-4">
         
-        <!-- Main Card -->
-        <div class="pro-card w-full max-w-md p-8 flex flex-col items-center text-center relative overflow-hidden">
+        <div class="glass-panel w-full max-w-md p-8 flex flex-col items-center text-center relative overflow-hidden">
             
-            <!-- Header -->
             <div class="mb-8 z-10 w-full flex flex-col items-center">
                 <div class="w-14 h-14 bg-black rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-gray-200">
                     <i data-lucide="instagram" class="w-7 h-7 text-white"></i>
@@ -171,7 +161,6 @@
                 </p>
             </div>
 
-            <!-- Input Area -->
             <div class="w-full space-y-4 z-10">
                 <div class="relative group text-left">
                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -181,29 +170,26 @@
                         type="text" 
                         id="urlInput"
                         placeholder="Paste Instagram URL..." 
-                        class="pro-input w-full py-3.5 pl-11 pr-4 text-sm font-medium"
+                        class="input-field w-full py-3.5 pl-11 pr-4 text-sm font-medium"
                         autocomplete="off"
                     >
                 </div>
 
                 <button 
-                    onclick="processDownload()" 
-                    id="downloadBtn"
-                    class="btn-pro w-full py-3.5 flex items-center justify-center gap-2 group"
+                    id="submitBtn"
+                    class="action-btn w-full py-3.5 flex items-center justify-center gap-2 group"
                 >
                     <span>Download Reel</span>
                     <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-0.5 transition-transform"></i>
                 </button>
             </div>
 
-            <!-- Loading State -->
-            <div id="loadingState" class="hidden mt-6 z-10 flex items-center justify-center gap-3">
-                <span class="loader"></span>
+            <div id="viewLoading" class="hidden mt-6 z-10 flex items-center justify-center gap-3">
+                <span class="spinner"></span>
                 <p class="text-sm font-semibold text-slate-600">Connecting to server...</p>
             </div>
 
-            <!-- Success/Result State -->
-            <div id="resultState" class="hidden w-full mt-8 pt-6 border-t border-slate-100 z-10 fade-in text-left">
+            <div id="viewSuccess" class="hidden w-full mt-8 pt-6 border-t border-slate-100 z-10 animate-in text-left">
                 <div class="group bg-green-50 border border-green-100 p-4 rounded-2xl flex gap-4 items-center mb-2">
                      <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
                          <i data-lucide="check" class="w-5 h-5 text-green-600"></i>
@@ -215,19 +201,17 @@
                 </div>
                 
                 <div class="mt-4 text-center">
-                     <button onclick="resetUI()" class="text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors">
+                     <button id="resetBtn" class="text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors">
                         Paste another link
                     </button>
                 </div>
             </div>
 
-             <!-- Error Message -->
-             <div id="errorState" class="hidden mt-4 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm z-10 fade-in flex items-center justify-center gap-2 font-medium">
+             <div id="viewError" class="hidden mt-4 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm z-10 animate-in flex items-center justify-center gap-2 font-medium">
                 <i data-lucide="alert-circle" class="w-4 h-4"></i>
-                <span id="errorText">Please enter a valid URL</span>
+                <span id="txtError">Please enter a valid URL</span>
             </div>
 
-            <!-- Footer -->
             <div class="mt-8 text-[11px] font-medium text-slate-300 z-10">
                 <p>Not affiliated with Instagram or Meta</p>
             </div>
@@ -235,238 +219,243 @@
     </div>
 
     <script>
-        // Initialize Lucide Icons
         lucide.createIcons();
 
-        /* --- 3D BACKGROUND (Three.js - Clean B&W) --- */
-        const container = document.getElementById('canvas-container');
-        
-        // Scene Setup
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0xffffff, 0.002);
+        // DOM elements
+        const els = {
+            input: document.getElementById('urlInput'),
+            btn: document.getElementById('submitBtn'),
+            reset: document.getElementById('resetBtn'),
+            loader: document.getElementById('viewLoading'),
+            success: document.getElementById('viewSuccess'),
+            error: document.getElementById('viewError'),
+            errorText: document.getElementById('txtError')
+        };
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-        
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setClearColor(0xffffff, 0); 
-        container.appendChild(renderer.domElement);
+        // --- Visuals (ThreeJS) ---
+        const initBackground = () => {
+            const container = document.getElementById('bg-canvas');
+            if (!container) return;
 
-        // Geometry: Particles
-        const geometry = new THREE.BufferGeometry();
-        const count = 1200;
-        const positions = new Float32Array(count * 3);
-        const sizes = new Float32Array(count);
+            const scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0xffffff, 0.002);
+            
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 6;
 
-        for(let i = 0; i < count * 3; i+=3) {
-            positions[i] = (Math.random() - 0.5) * 30; // x
-            positions[i+1] = (Math.random() - 0.5) * 30; // y
-            positions[i+2] = (Math.random() - 0.5) * 20; // z
-            sizes[i/3] = Math.random(); 
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-
-        const material = new THREE.PointsMaterial({
-            size: 0.05,
-            color: 0x000000,
-            transparent: true,
-            opacity: 0.6,
-            sizeAttenuation: true
-        });
-
-        const particlesMesh = new THREE.Points(geometry, material);
-        scene.add(particlesMesh);
-
-        // Floating Geometric Shapes
-        const shapesGroup = new THREE.Group();
-        const geomTypes = [new THREE.IcosahedronGeometry(1, 0), new THREE.BoxGeometry(1, 1, 1), new THREE.OctahedronGeometry(1, 0)];
-        const shapeMaterial = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.15, linewidth: 1 });
-
-        for (let i = 0; i < 6; i++) {
-            const geom = geomTypes[Math.floor(Math.random() * geomTypes.length)];
-            const edges = new THREE.EdgesGeometry(geom);
-            const line = new THREE.LineSegments(edges, shapeMaterial);
-            line.position.set((Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 15);
-            line.scale.setScalar(Math.random() * 1.5 + 0.5);
-            line.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
-            shapesGroup.add(line);
-        }
-        scene.add(shapesGroup);
-
-        camera.position.z = 6;
-        let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
-        const windowHalfX = window.innerWidth / 2;
-        const windowHalfY = window.innerHeight / 2;
-
-        document.addEventListener('mousemove', (event) => {
-            mouseX = (event.clientX - windowHalfX);
-            mouseY = (event.clientY - windowHalfY);
-        });
-
-        const clock = new THREE.Clock();
-        function animate() {
-            requestAnimationFrame(animate);
-            const elapsedTime = clock.getElapsedTime();
-            targetX = mouseX * 0.0005;
-            targetY = mouseY * 0.0005;
-            particlesMesh.rotation.y += 0.0005;
-            particlesMesh.rotation.x += 0.0002;
-            particlesMesh.rotation.y += 0.05 * (targetX - particlesMesh.rotation.y);
-            particlesMesh.rotation.x += 0.05 * (targetY - particlesMesh.rotation.x);
-            shapesGroup.children.forEach((mesh, i) => {
-                mesh.rotation.x += 0.001 * (i % 2 === 0 ? 1 : -1);
-                mesh.rotation.y += 0.002 * (i % 2 === 0 ? 1 : -1);
-                mesh.position.y += Math.sin(elapsedTime * 0.5 + i) * 0.002;
-            });
-            renderer.render(scene, camera);
-        }
-        animate();
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0xffffff, 0); 
+            container.appendChild(renderer.domElement);
 
-        /* --- UI LOGIC WITH FETCH --- */
-        const urlInput = document.getElementById('urlInput');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const loadingState = document.getElementById('loadingState');
-        const resultState = document.getElementById('resultState');
-        const errorState = document.getElementById('errorState');
-        const errorText = document.getElementById('errorText');
+            // Particles
+            const pGeo = new THREE.BufferGeometry();
+            const count = 1200;
+            const pos = new Float32Array(count * 3);
+            const sizes = new Float32Array(count);
 
-        // Confetti Function
-        function launchConfetti() {
+            for(let i = 0; i < count * 3; i+=3) {
+                pos[i] = (Math.random() - 0.5) * 30;
+                pos[i+1] = (Math.random() - 0.5) * 30;
+                pos[i+2] = (Math.random() - 0.5) * 20;
+                sizes[i/3] = Math.random(); 
+            }
+
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            pGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            const pMat = new THREE.PointsMaterial({
+                size: 0.05, color: 0x000000, transparent: true, opacity: 0.6, sizeAttenuation: true
+            });
+            const particles = new THREE.Points(pGeo, pMat);
+            scene.add(particles);
+
+            // Floating shapes
+            const shapes = new THREE.Group();
+            const geoms = [
+                new THREE.IcosahedronGeometry(1, 0), 
+                new THREE.BoxGeometry(1, 1, 1), 
+                new THREE.OctahedronGeometry(1, 0)
+            ];
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.15 });
+
+            for (let i = 0; i < 6; i++) {
+                const g = geoms[Math.floor(Math.random() * geoms.length)];
+                const line = new THREE.LineSegments(new THREE.EdgesGeometry(g), lineMat);
+                line.position.set((Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 15);
+                line.scale.setScalar(Math.random() * 1.5 + 0.5);
+                line.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+                shapes.add(line);
+            }
+            scene.add(shapes);
+
+            // Interaction
+            let mouse = { x: 0, y: 0 };
+            const halfX = window.innerWidth / 2;
+            const halfY = window.innerHeight / 2;
+
+            document.addEventListener('mousemove', (e) => {
+                mouse.x = (e.clientX - halfX);
+                mouse.y = (e.clientY - halfY);
+            });
+
+            const clock = new THREE.Clock();
+            
+            const animate = () => {
+                requestAnimationFrame(animate);
+                const elapsed = clock.getElapsedTime();
+                
+                // Smooth follow
+                particles.rotation.y += 0.05 * ((mouse.x * 0.0005) - particles.rotation.y);
+                particles.rotation.x += 0.05 * ((mouse.y * 0.0005) - particles.rotation.x);
+                
+                // Idle drift
+                particles.rotation.y += 0.0005;
+                particles.rotation.x += 0.0002;
+
+                shapes.children.forEach((mesh, i) => {
+                    const dir = i % 2 === 0 ? 1 : -1;
+                    mesh.rotation.x += 0.001 * dir;
+                    mesh.rotation.y += 0.002 * dir;
+                    mesh.position.y += Math.sin(elapsed * 0.5 + i) * 0.002;
+                });
+
+                renderer.render(scene, camera);
+            };
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        };
+
+        // --- Logic ---
+
+        const fireConfetti = () => {
             for (let i = 0; i < 40; i++) {
                 const c = document.createElement("div");
-                c.className = "confetti";
+                c.className = "confetti-piece";
                 c.style.left = Math.random() * 100 + "vw";
                 c.style.background = Math.random() > 0.5 ? "#000" : "#333";
-                c.style.animationDuration = 0.8 + Math.random() * 0.6 + "s";
+                c.style.animationDuration = (0.8 + Math.random() * 0.6) + "s";
                 document.body.appendChild(c);
                 setTimeout(() => c.remove(), 1500);
             }
-        }
+        };
 
-        async function processDownload() {
-            const url = urlInput.value.trim();
+        const toggleLoading = (isLoading) => {
+            if (isLoading) {
+                els.btn.classList.add('hidden');
+                els.loader.classList.remove('hidden');
+                els.loader.classList.add('flex');
+                els.error.classList.add('hidden');
+                els.success.classList.add('hidden');
+            } else {
+                els.loader.classList.add('hidden');
+                els.loader.classList.remove('flex');
+            }
+        };
 
-            // Reset States
-            errorState.classList.add('hidden');
-            resultState.classList.add('hidden');
-            downloadBtn.disabled = false;
+        const handleDownload = async () => {
+            const url = els.input.value.trim();
 
-            // Simple Validation
             if (!url) {
-                showError("Please paste a Reel URL");
                 shakeInput();
+                showError("Please paste a Reel URL");
                 return;
             }
 
-            // Start Loading
-            downloadBtn.classList.add('hidden');
-            loadingState.classList.remove('hidden');
-            loadingState.classList.add('flex');
-            
-            // Clear input
-            urlInput.value = "";
+            toggleLoading(true);
+            els.input.value = ""; // clear immediately
+            els.btn.disabled = true;
 
             try {
-                // FIXED: Robust environment detection
-                // If we are on localhost/127.0.0.1 but the PORT is NOT 5000, 
-                // we assume we are running the frontend via a separate tool (like Live Server on 5500)
-                // and the backend is running separately on 5000.
-                const isLocalFrontend = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '5000';
+                // Check if we are running frontend on a different port than the backend
+                const isLocalDev = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') 
+                                    && location.port !== '5000';
                 
-                // If Local Frontend (e.g. port 5500), try hitting backend on port 5000.
-                // If Vercel/Production, use relative path "/download".
-                const apiUrl = isLocalFrontend ? 'http://127.0.0.1:5000/download' : '/download';
+                // If local dev, assume backend is at 5000. Else relative path.
+                const endpoint = isLocalDev ? 'http://127.0.0.1:5000/download' : '/download';
 
-                const res = await fetch(apiUrl, {
+                const res = await fetch(endpoint, {
                     method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "Accept": "application/json"
-                    },
+                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
                     body: JSON.stringify({ url })
                 });
 
-                // SPECIFIC ERROR HANDLING FOR 405 (Method Not Allowed)
+                // Handle 405 specifically (often a mac/vercel config issue)
                 if (res.status === 405) {
-                    throw new Error("405 Error: Backend Issue.\n• Vercel: Missing vercel.json rewrite.\n• Local (Mac): Port 5000 is blocked (AirPlay). Try Port 5001.");
+                    throw new Error("Backend 405: Check Vercel config or Port 5000 (AirPlay conflict?)");
                 }
 
-                // Check response safely
+                // Parse
                 let data;
                 try {
-                    const text = await res.text();
-                    data = text ? JSON.parse(text) : {}; 
-                } catch (parseError) {
-                    // This happens if the server returns HTML (like a 404 page) instead of JSON
-                    throw new Error(`Server Error: ${res.status} (Invalid JSON Response)`);
-                }
-                
-                if (!res.ok) {
-                   throw new Error(data.error || `Server Error: ${res.status}`);
-                }
-                
-                if (!data.download_url) {
-                    throw new Error("Invalid response from server");
+                    const txt = await res.text();
+                    data = txt ? JSON.parse(txt) : {};
+                } catch(e) {
+                    throw new Error(`Server returned invalid JSON (${res.status})`);
                 }
 
-                // FIXED: Construct correct file download link based on environment
-                const backendOrigin = isLocalFrontend ? 'http://127.0.0.1:5000' : window.location.origin;
-                const downloadLink = backendOrigin + data.download_url;
+                if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+                if (!data.download_url) throw new Error("No download URL returned");
 
-                // Create download link
-                const a = document.createElement("a");
-                a.href = downloadLink;
-                a.download = "";
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
+                // Trigger DL
+                const backendBase = isLocalDev ? 'http://127.0.0.1:5000' : location.origin;
+                const link = document.createElement("a");
+                link.href = backendBase + data.download_url;
+                link.download = "";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
 
-                // Success State
-                launchConfetti();
-                loadingState.classList.add('hidden');
-                loadingState.classList.remove('flex');
-                
-                // Show Result Card instead of Button
-                resultState.classList.remove('hidden');
+                // Done
+                toggleLoading(false);
+                fireConfetti();
+                els.success.classList.remove('hidden');
 
             } catch (err) {
-                console.error(err);
-                loadingState.classList.add('hidden');
-                loadingState.classList.remove('flex');
-                downloadBtn.classList.remove('hidden');
-                // Show the specific error message
-                showError(err.message || "Download failed. Is the server running?");
+                console.error("DL Failed:", err);
+                toggleLoading(false);
+                els.btn.classList.remove('hidden');
+                showError(err.message || "Download failed. Check console.");
+            } finally {
+                els.btn.disabled = false;
             }
-        }
+        };
 
-        function showError(msg) {
-            errorText.innerText = msg;
-            errorState.classList.remove('hidden');
-        }
+        const showError = (msg) => {
+            els.errorText.innerText = msg;
+            els.error.classList.remove('hidden');
+        };
 
-        function shakeInput() {
-            urlInput.classList.add('border-red-500');
-            urlInput.classList.add('bg-red-50');
+        const shakeInput = () => {
+            els.input.classList.add('border-red-500', 'bg-red-50');
             setTimeout(() => {
-                urlInput.classList.remove('border-red-500');
-                urlInput.classList.remove('bg-red-50');
+                els.input.classList.remove('border-red-500', 'bg-red-50');
             }, 500);
-        }
+        };
 
-        function resetUI() {
-            urlInput.value = '';
-            resultState.classList.add('hidden');
-            downloadBtn.classList.remove('hidden');
-            urlInput.focus();
-        }
+        const resetView = () => {
+            els.input.value = '';
+            els.success.classList.add('hidden');
+            els.btn.classList.remove('hidden');
+            els.input.focus();
+        };
+
+        // Init
+        initBackground();
+        els.btn.addEventListener('click', handleDownload);
+        els.reset.addEventListener('click', resetView);
+
+        // Enter key support
+        els.input.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') handleDownload();
+        });
+
     </script>
 </body>
 </html>
