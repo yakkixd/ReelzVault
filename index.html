@@ -374,23 +374,26 @@
             urlInput.value = "";
 
             try {
-                // FIXED: Use relative path so it works on Vercel OR localhost
-                // Removed "http://127.0.0.1:5000"
-                const res = await fetch("/download", {
+                // FIXED: Auto-detect local dev environment
+                // If running on localhost/127.0.0.1 but NOT on port 5000, assume backend is at :5000
+                // Otherwise (Vercel or python app.py directly), use relative path
+                const isLocalDev = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '5000';
+                
+                // Determine API URL based on environment
+                const apiUrl = isLocalDev ? 'http://127.0.0.1:5000/download' : '/download';
+
+                const res = await fetch(apiUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ url })
                 });
 
-                // FIX: Check if we actually got JSON back
-                // This prevents the "Unexpected end of JSON input" error
+                // Check response safely
                 let data;
                 try {
                     const text = await res.text();
-                    // Try to parse the text as JSON, or use an empty object if response is empty
                     data = text ? JSON.parse(text) : {}; 
                 } catch (parseError) {
-                    // If parsing fails, the server probably returned an HTML error page or something else
                     throw new Error(`Server Error: ${res.status} (Invalid Response)`);
                 }
                 
@@ -402,8 +405,9 @@
                     throw new Error("Invalid response from server");
                 }
 
-                // FIXED: Use current window origin for the download link
-                const downloadLink = window.location.origin + data.download_url;
+                // FIXED: Construct correct file download link based on environment
+                const backendOrigin = isLocalDev ? 'http://127.0.0.1:5000' : window.location.origin;
+                const downloadLink = backendOrigin + data.download_url;
 
                 // Create download link
                 const a = document.createElement("a");
