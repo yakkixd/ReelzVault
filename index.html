@@ -374,19 +374,29 @@
             urlInput.value = "";
 
             try {
-                // FIXED: Auto-detect local dev environment
-                // If running on localhost/127.0.0.1 but NOT on port 5000, assume backend is at :5000
-                // Otherwise (Vercel or python app.py directly), use relative path
-                const isLocalDev = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '5000';
+                // FIXED: Robust environment detection
+                // If we are on localhost/127.0.0.1 but the PORT is NOT 5000, 
+                // we assume we are running the frontend via a separate tool (like Live Server on 5500)
+                // and the backend is running separately on 5000.
+                const isLocalFrontend = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '5000';
                 
-                // Determine API URL based on environment
-                const apiUrl = isLocalDev ? 'http://127.0.0.1:5000/download' : '/download';
+                // If Local Frontend (e.g. port 5500), try hitting backend on port 5000.
+                // If Vercel/Production, use relative path "/download".
+                const apiUrl = isLocalFrontend ? 'http://127.0.0.1:5000/download' : '/download';
 
                 const res = await fetch(apiUrl, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
                     body: JSON.stringify({ url })
                 });
+
+                // SPECIFIC ERROR HANDLING FOR 405 (Method Not Allowed)
+                if (res.status === 405) {
+                    throw new Error("405 Error: Backend Issue.\n• Vercel: Missing vercel.json rewrite.\n• Local (Mac): Port 5000 is blocked (AirPlay). Try Port 5001.");
+                }
 
                 // Check response safely
                 let data;
@@ -394,7 +404,8 @@
                     const text = await res.text();
                     data = text ? JSON.parse(text) : {}; 
                 } catch (parseError) {
-                    throw new Error(`Server Error: ${res.status} (Invalid Response)`);
+                    // This happens if the server returns HTML (like a 404 page) instead of JSON
+                    throw new Error(`Server Error: ${res.status} (Invalid JSON Response)`);
                 }
                 
                 if (!res.ok) {
@@ -406,7 +417,7 @@
                 }
 
                 // FIXED: Construct correct file download link based on environment
-                const backendOrigin = isLocalDev ? 'http://127.0.0.1:5000' : window.location.origin;
+                const backendOrigin = isLocalFrontend ? 'http://127.0.0.1:5000' : window.location.origin;
                 const downloadLink = backendOrigin + data.download_url;
 
                 // Create download link
