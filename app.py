@@ -7,8 +7,8 @@ import uuid
 app = Flask(__name__, static_folder=".", template_folder=".")
 CORS(app)
 
-DOWNLOAD_FOLDER = "downloads"
-os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+# VERCEL FIX: Use /tmp directory for temporary storage
+DOWNLOAD_FOLDER = "/tmp"
 
 @app.route("/")
 def home():
@@ -22,30 +22,40 @@ def download_reel():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    reel_id = url.rstrip("/").split("/")[-1]
-    file_id = reel_id
-
-    output_path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.mp4")
-
-    ydl_opts = {
-        "outtmpl": output_path,
-        "format": "mp4",
-        "quiet": True
-    }
-
     try:
+        reel_id = url.rstrip("/").split("/")[-1]
+        file_id = reel_id
+        output_path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.mp4")
+
+        # VERCEL FIX: Simplified yt-dlp options
+        # Note: Large downloads might still time out on Vercel (10s limit)
+        ydl_opts = {
+            "outtmpl": output_path,
+            "format": "mp4/best", # simplify format to avoid merging needs
+            "quiet": True,
+            "noplaylist": True
+        }
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
         return jsonify({"download_url": f"/file/{file_id}"})
 
     except Exception as e:
+        print(f"Error: {e}") # Log error for Vercel logs
         return jsonify({"error": str(e)}), 500
 
 @app.route("/file/<file_id>")
 def serve_file(file_id):
-    path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.mp4")
-    return send_file(path, as_attachment=True)
+    try:
+        path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.mp4")
+        if not os.path.exists(path):
+             return jsonify({"error": "File not found or expired"}), 404
+        return send_file(path, as_attachment=True)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+# Vercel requires the 'app' object to be available. 
+# app.run() is ignored by Vercel but useful for local testing.
 if __name__ == "__main__":
     app.run(debug=True)
