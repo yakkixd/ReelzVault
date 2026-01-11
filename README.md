@@ -143,12 +143,6 @@ Please respect content creators and platform rules.
 
 ---
 
-## 📄 License
-
-**MIT License** – Free to use for your own projects.
-
----
-
 ## ⭐ Bonus
 
 Customize it, add new features, and build your own **Pro tools** 🚀
