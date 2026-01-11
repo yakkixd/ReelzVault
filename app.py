@@ -6,8 +6,6 @@ import uuid
 
 app = Flask(__name__, static_folder=".", template_folder=".")
 CORS(app)
-
-# VERCEL FIX: Use /tmp directory for temporary storage
 DOWNLOAD_FOLDER = "/tmp"
 
 @app.route("/")
@@ -27,15 +25,13 @@ def download_reel():
         file_id = reel_id
         output_path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.mp4")
 
-        # VERCEL FIX: Simplified yt-dlp options
-        # Note: Large downloads might still time out on Vercel (10s limit)
         ydl_opts = {
             "outtmpl": output_path,
-            "format": "mp4/best", # simplify format to avoid merging needs
+            "format": "mp4/best", 
             "quiet": True,
             "noplaylist": True,
-            "cachedir": "/tmp", # Force cache to writable directory
-            "source_address": "0.0.0.0" # Force IPv4 to avoid IPv6 issues on some serverless envs
+            "cachedir": "/tmp", 
+            "source_address": "0.0.0.0"
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -44,7 +40,7 @@ def download_reel():
         return jsonify({"download_url": f"/file/{file_id}"})
 
     except Exception as e:
-        print(f"Error: {e}") # Log error for Vercel logs
+        print(f"Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/file/<file_id>")
@@ -57,7 +53,5 @@ def serve_file(file_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Vercel requires the 'app' object to be available. 
-# app.run() is ignored by Vercel but useful for local testing.
 if __name__ == "__main__":
     app.run(debug=True)
