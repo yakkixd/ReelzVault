@@ -1,127 +1,154 @@
 # 🎥 InstaReelz 3D – Pro Edition
 
-A **high‑fidelity, immersive Instagram Reel downloader interface** featuring a dynamic **3D particle background** and a clean, professional **glassmorphism UI**.
+A **professional Instagram Reel downloader** with a stunning **3D particle background** and a clean, modern **glassmorphism UI**.
 
-> ⚡ Built for style, performance, and a premium user experience.
+> Sleek. Fast. Stylish.
 
 ---
 
 ## ✨ Features
 
-### 🌌 Immersive 3D Background  
-Interactive **Three.js** particle system with smooth mouse‑based parallax effects.
+### 🌌 3D Background  
+A dynamic particle background that reacts to mouse movement for a premium feel.
 
-### 🎨 Modern UI/UX  
-- Glassmorphism cards  
-- Inter typography  
-- Smooth transitions  
-- "Pro" aesthetic  
+### 🎨 Modern Design  
+- Glass-style card UI  
+- Smooth typography  
+- Clean "Pro" aesthetic  
 
-### ⚙️ Reactive State Management  
-- Visual loading indicators  
-- Error handling with feedback  
-- Success state with **Confetti animation**  
+### ⚙️ Interactive Features  
+- Loading spinner while processing  
+- Error messages for failed downloads  
+- Confetti animation on success  
 
-### 📱 Responsive Design  
-Fully adaptive layout using **Tailwind CSS**.
-
----
-
-## 🚀 Getting Started
-
-### 1️⃣ Frontend Setup
-
-The frontend is a **single self‑contained HTML file**.
-
-**Steps:**  
-1. Download `index.html`  
-2. Open it in any modern web browser  
+### 📱 Mobile Friendly  
+Works perfectly on both **mobile** and **desktop** devices.
 
 ---
 
-### 2️⃣ Backend Setup (Required)
+## 🚀 How to Run It
 
-The frontend sends requests to:
+### 1️⃣ Setup Files
 
+1. Create a new project folder  
+2. Put `index.html` inside it  
+3. Create a file named `app.py` in the same folder  
+
+---
+
+### 2️⃣ Setup Backend (Server)
+
+You need Python to make the download button work.
+
+#### 📦 Requirements
+
+- Python 3.x  
+- Install required libraries:
+
+```bash
+pip install flask flask-cors yt-dlp
 ```
-http://127.0.0.1:5000/download
-```
 
-You need a simple **Flask backend** to handle downloading.
+---
 
-#### 📦 Prerequisites
-
-```
-pip install flask flask-cors instaloader
-```
-
-#### 📄 Create `app.py`
+### 📄 Paste This Into `app.py`
 
 ```python
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
-import time
+import yt_dlp
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=".", template_folder=".")
 CORS(app)
 
-@app.route('/download', methods=['POST'])
+DOWNLOAD_FOLDER = "downloads"
+os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/download", methods=["POST"])
 def download_reel():
     data = request.json
-    url = data.get('url')
-    
+    url = data.get("url")
+
     if not url:
-        return jsonify({'error': 'No URL provided'}), 400
-    
-    print(f"Processing URL: {url}")
-    time.sleep(2)
-    
-    return jsonify({
-        'download_url': '/static/sample_video.mp4',
-        'message': 'Success'
-    })
+        return jsonify({"error": "No URL provided"}), 400
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    reel_id = url.rstrip("/").split("/")[-1]
+    output_path = os.path.join(DOWNLOAD_FOLDER, f"{reel_id}.mp4")
+
+    ydl_opts = {
+        "outtmpl": output_path,
+        "format": "mp4",
+        "quiet": True
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        return jsonify({"download_url": f"/file/{reel_id}"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/file/<file_id>")
+def serve_file(file_id):
+    path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.mp4")
+    return send_file(path, as_attachment=True)
+
+if __name__ == "__main__":
+    app.run(debug=True)
 ```
 
-#### ▶️ Run the Server
+---
 
-```
+### ▶️ Start the App
+
+1. Open Terminal / Command Prompt  
+2. Go to your project folder  
+3. Run:
+
+```bash
 python app.py
 ```
 
----
+4. Open your browser and visit:
 
-## 🛠️ Tech Stack
-
-| Technology | Purpose |
-|-----------|---------|
-| HTML5 & CSS3 | Structure & styling |
-| Tailwind CSS | UI & responsiveness |
-| Three.js | 3D particle background |
-| Lucide Icons | Icons |
-| JavaScript (ES6+) | Logic |
-| Flask | Backend |
-| Flask‑CORS | Cross‑origin support |
+```
+http://127.0.0.1:5000
+```
 
 ---
 
-## ⚠️ Disclaimer
+## 🛠️ Tools Used
 
-This project is for **educational purposes only**.  
-Downloading Instagram content may violate their **Terms of Service**.  
-Please respect copyright laws and creators’ rights.
+| Tool | Purpose |
+|------|---------|
+| HTML & CSS | Website structure |
+| Tailwind CSS | Styling |
+| Three.js | 3D effects |
+| Flask | Backend server |
+| yt-dlp | Video downloading |
+
+---
+
+## ⚠️ Note
+
+This project is for **learning purposes only**.  
+Please respect content creators and platform rules.
 
 ---
 
 ## 📄 License
 
-**MIT License**  
-Free to use, modify, and distribute.
+**MIT License** – Free to use for your own projects.
 
 ---
 
-## ⭐ Extra
+## ⭐ Bonus
 
-If you liked this project, consider giving it a star and building your own **Pro‑style web tools** 🚀
+Customize it, add new features, and build your own **Pro tools** 🚀
