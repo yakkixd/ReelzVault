@@ -382,7 +382,17 @@
                     body: JSON.stringify({ url })
                 });
 
-                const data = await res.json();
+                // FIX: Check if we actually got JSON back
+                // This prevents the "Unexpected end of JSON input" error
+                let data;
+                try {
+                    const text = await res.text();
+                    // Try to parse the text as JSON, or use an empty object if response is empty
+                    data = text ? JSON.parse(text) : {}; 
+                } catch (parseError) {
+                    // If parsing fails, the server probably returned an HTML error page or something else
+                    throw new Error(`Server Error: ${res.status} (Invalid Response)`);
+                }
                 
                 if (!res.ok) {
                    throw new Error(data.error || `Server Error: ${res.status}`);
