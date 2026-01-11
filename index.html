@@ -374,8 +374,9 @@
             urlInput.value = "";
 
             try {
-                // Fetch to local backend
-                const res = await fetch("http://127.0.0.1:5000/download", {
+                // FIXED: Use relative path so it works on Vercel OR localhost
+                // Removed "http://127.0.0.1:5000"
+                const res = await fetch("/download", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ url })
@@ -383,13 +384,20 @@
 
                 const data = await res.json();
                 
-                if (!data.download_url) {
-                    throw new Error(data.error || "Download failed");
+                if (!res.ok) {
+                   throw new Error(data.error || `Server Error: ${res.status}`);
                 }
+                
+                if (!data.download_url) {
+                    throw new Error("Invalid response from server");
+                }
+
+                // FIXED: Use current window origin for the download link
+                const downloadLink = window.location.origin + data.download_url;
 
                 // Create download link
                 const a = document.createElement("a");
-                a.href = "http://127.0.0.1:5000" + data.download_url;
+                a.href = downloadLink;
                 a.download = "";
                 document.body.appendChild(a);
                 a.click();
@@ -408,7 +416,8 @@
                 loadingState.classList.add('hidden');
                 loadingState.classList.remove('flex');
                 downloadBtn.classList.remove('hidden');
-                showError("Download failed. Is the server running?");
+                // Show the specific error message
+                showError(err.message || "Download failed. Is the server running?");
             }
         }
 
