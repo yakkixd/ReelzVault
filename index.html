@@ -121,10 +121,19 @@
             downloadBtn.classList.add('hidden'); loadingState.classList.remove('hidden'); loadingState.classList.add('flex'); urlInput.value = "";
 
             try {
-                // AUTO-DETECT BACKEND URL
-                // Check if local dev (frontend on 5500, backend on 5001) or Vercel (frontend and backend same origin)
+                // FIXED: URL CONSTRUCTION LOGIC
+                // 1. Get the Current Path (e.g. "/reels" or "/")
+                const currentPath = window.location.pathname.replace(/\/$/, ''); // Remove trailing slash
+                
+                // 2. Detect Local Development (Port 5500 vs 5001)
                 const isLocalFrontend = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '5001';
-                const apiUrl = isLocalFrontend ? 'http://127.0.0.1:5001/download' : 'download'; // Relative path for Vercel
+                
+                // 3. Build API URL
+                // If Local: hardcode to 5001
+                // If Vercel: append "/download" to the current path so rewrites work (enigma-labs.dev/reels/download)
+                const apiUrl = isLocalFrontend 
+                    ? 'http://127.0.0.1:5001/download' 
+                    : `${window.location.origin}${currentPath}/download`;
 
                 const res = await fetch(apiUrl, {
                     method: "POST",
@@ -141,13 +150,16 @@
                 if (!res.ok) throw new Error(data.error || `Server Error: ${res.status}`);
                 if (!data.download_url) throw new Error("Invalid response");
 
-                const backendOrigin = isLocalFrontend ? 'http://127.0.0.1:5001' : window.location.origin + window.location.pathname.replace(/\/$/, '');
-                // Handle Vercel relative path correctly
+                // FIXED: DOWNLOAD LINK CONSTRUCTION
+                // Ensure the download link also respects the current rewrite path
                 let finalLink = data.download_url;
-                if(finalLink.startsWith('/')) finalLink = finalLink.substring(1);
+                if(finalLink.startsWith('/')) finalLink = finalLink.substring(1); // remove leading slash
                 
-                // Construct the absolute URL based on environment
-                const downloadLink = isLocalFrontend ? `http://127.0.0.1:5001/${finalLink}` : finalLink;
+                // If Local: http://127.0.0.1:5001/file/xyz
+                // If Vercel: enigma-labs.dev/reels/file/xyz
+                const downloadLink = isLocalFrontend 
+                    ? `http://127.0.0.1:5001/${finalLink}` 
+                    : `${window.location.origin}${currentPath}/${finalLink}`;
                 
                 const a = document.createElement("a"); a.href = downloadLink; a.download = ""; document.body.appendChild(a); a.click(); a.remove();
 
