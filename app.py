@@ -39,11 +39,12 @@ def download_media():
             "noplaylist": True,
             "cachedir": "/tmp", 
             "source_address": "0.0.0.0",
-            # FIX FOR INSTAGRAM ERROR: Add a real User-Agent to look like a browser
-            "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.5"
+            # FIX FOR INSTAGRAM ERROR: Masquerade as the Instagram iOS App
+            # This bypasses the strict login wall often seen on the web version
+            "extractor_args": {
+                "instagram": {
+                    "imp_user_agent": ["ios"]
+                }
             }
         }
 
