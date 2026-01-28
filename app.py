@@ -88,6 +88,15 @@ def serve_file(filename):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/debug/env")
+def debug_env():
+    val = os.getenv("INSTAGRAM_COOKIES")
+    return jsonify({
+        "exists": bool(val),
+        "length": len(val) if val else 0
+    })
+
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
