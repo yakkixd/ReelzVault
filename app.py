@@ -5,12 +5,35 @@ import os
 import time
 import base64
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
 app = Flask(__name__, static_folder=".", template_folder=".")
-CORS(app)
+
+# 🔐 Lock CORS to your frontend only
+CORS(app, origins=[
+    "https://your-site.vercel.app"  # ← CHANGE THIS
+])
+
+# 🔒 Rate limiter (serverless-safe)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["100 per hour"]
+)
 
 # Vercel writable directory
 DOWNLOAD_FOLDER = "/tmp"
 INSTAGRAM_COOKIES_PATH = "/tmp/instagram_cookies.txt"
+
+# Limit payload size (anti-abuse)
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024  # 2MB
+
+
+# 🔑 API KEY CHECK
+def require_api_key(req):
+    api_key = req.headers.get("X-API-Key")
+    return api_key and api_key == os.getenv("API_KEY")
 
 
 def ensure_cookies_file():
@@ -21,9 +44,7 @@ def ensure_cookies_file():
     if not cookies_b64:
         raise RuntimeError("Instagram cookies not found in environment variables")
 
-    # Always rewrite (safe + simple for serverless)
     data = base64.b64decode(cookies_b64)
-
     with open(INSTAGRAM_COOKIES_PATH, "wb") as f:
         f.write(data)
 
@@ -34,16 +55,28 @@ def home():
 
 
 @app.route("/download", methods=["POST"])
+@limiter.limit("5 per minute")  # 🚦 per-IP rate limit
 def download_media():
-    data = request.json
+
+    # 🔐 API key protection
+    if not require_api_key(request):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json or {}
     url = data.get("url")
     download_type = data.get("type", "video")
 
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
+    # 🔎 Allow only Instagram
+    if "instagram.com" not in url:
+        return jsonify({"error": "Only Instagram URLs are allowed"}), 400
+
     try:
-        # 🔥 Ensure Instagram cookies exist
+        # Soft delay (anti-detection)
+        time.sleep(2)
+
         ensure_cookies_file()
 
         file_id = str(int(time.time()))
@@ -53,8 +86,6 @@ def download_media():
             "quiet": True,
             "noplaylist": True,
             "cachedir": "/tmp",
-
-            # ✅ COOKIE FIX
             "cookiefile": INSTAGRAM_COOKIES_PATH,
 
             # Serverless stability
@@ -78,21 +109,22 @@ def download_media():
 
     except Exception as e:
         print("Download error:", e)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Download failed"}), 500
 
 
 @app.route("/file/<filename>")
+@limiter.limit("20 per hour")
 def serve_file(filename):
     try:
         path = os.path.join(DOWNLOAD_FOLDER, filename)
         if not os.path.exists(path):
             return jsonify({"error": "File not found or expired"}), 404
         return send_file(path, as_attachment=True)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "File error"}), 500
 
 
-# 🔍 Optional debug (remove after testing)
+# 🔍 TEMP DEBUG (REMOVE AFTER CONFIRMING)
 @app.route("/debug/env")
 def debug_env():
     val = os.getenv("INSTAGRAM_COOKIES_B64")
