@@ -3,26 +3,29 @@ from flask_cors import CORS
 import yt_dlp
 import os
 import time
+import base64
 
 app = Flask(__name__, static_folder=".", template_folder=".")
 CORS(app)
 
-# Vercel uses /tmp for writable storage
+# Vercel writable directory
 DOWNLOAD_FOLDER = "/tmp"
 INSTAGRAM_COOKIES_PATH = "/tmp/instagram_cookies.txt"
 
 
 def ensure_cookies_file():
     """
-    Writes Instagram cookies from Vercel env variable to /tmp
+    Writes Base64-decoded Instagram cookies from env to /tmp
     """
-    cookies = os.getenv("INSTAGRAM_COOKIES")
-    if not cookies:
+    cookies_b64 = os.getenv("INSTAGRAM_COOKIES_B64")
+    if not cookies_b64:
         raise RuntimeError("Instagram cookies not found in environment variables")
 
-    if not os.path.exists(INSTAGRAM_COOKIES_PATH):
-        with open(INSTAGRAM_COOKIES_PATH, "w", encoding="utf-8") as f:
-            f.write(cookies)
+    # Always rewrite (safe + simple for serverless)
+    data = base64.b64decode(cookies_b64)
+
+    with open(INSTAGRAM_COOKIES_PATH, "wb") as f:
+        f.write(data)
 
 
 @app.route("/")
@@ -40,7 +43,7 @@ def download_media():
         return jsonify({"error": "No URL provided"}), 400
 
     try:
-        # Ensure cookies exist (Instagram fix)
+        # 🔥 Ensure Instagram cookies exist
         ensure_cookies_file()
 
         file_id = str(int(time.time()))
@@ -51,10 +54,10 @@ def download_media():
             "noplaylist": True,
             "cachedir": "/tmp",
 
-            # 🔥 COOKIE FIX
+            # ✅ COOKIE FIX
             "cookiefile": INSTAGRAM_COOKIES_PATH,
 
-            # Stability for serverless
+            # Serverless stability
             "source_address": "0.0.0.0",
             "extractor_retries": 3,
             "fragment_retries": 3,
@@ -88,14 +91,15 @@ def serve_file(filename):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+# 🔍 Optional debug (remove after testing)
 @app.route("/debug/env")
 def debug_env():
-    val = os.getenv("INSTAGRAM_COOKIES")
+    val = os.getenv("INSTAGRAM_COOKIES_B64")
     return jsonify({
         "exists": bool(val),
         "length": len(val) if val else 0
     })
-
 
 
 if __name__ == "__main__":
