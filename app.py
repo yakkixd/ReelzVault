@@ -7,76 +7,87 @@ import time
 app = Flask(__name__, static_folder=".", template_folder=".")
 CORS(app)
 
-# VERCEL FIX: Use /tmp directory for temporary storage
+# Vercel uses /tmp for writable storage
 DOWNLOAD_FOLDER = "/tmp"
+INSTAGRAM_COOKIES_PATH = "/tmp/instagram_cookies.txt"
+
+
+def ensure_cookies_file():
+    """
+    Writes Instagram cookies from Vercel env variable to /tmp
+    """
+    cookies = os.getenv("INSTAGRAM_COOKIES")
+    if not cookies:
+        raise RuntimeError("Instagram cookies not found in environment variables")
+
+    if not os.path.exists(INSTAGRAM_COOKIES_PATH):
+        with open(INSTAGRAM_COOKIES_PATH, "w", encoding="utf-8") as f:
+            f.write(cookies)
+
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
+
 @app.route("/download", methods=["POST"])
 def download_media():
     data = request.json
     url = data.get("url")
-    # Get the download type (video or audio), default to video
-    download_type = data.get("type", "video") 
+    download_type = data.get("type", "video")
 
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
     try:
-        # Generate a unique filename based on time to avoid collisions
-        file_id = str(int(time.time()))
-        
-        # Determine extension based on type
-        ext = "mp4" if download_type == "video" else "m4a"
-        output_path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.{ext}")
+        # Ensure cookies exist (Instagram fix)
+        ensure_cookies_file()
 
-        # Config specifically tuned for Serverless environments
+        file_id = str(int(time.time()))
+
         ydl_opts = {
             "outtmpl": os.path.join(DOWNLOAD_FOLDER, f"{file_id}.%(ext)s"),
             "quiet": True,
             "noplaylist": True,
-            "cachedir": "/tmp", 
+            "cachedir": "/tmp",
+
+            # 🔥 COOKIE FIX
+            "cookiefile": INSTAGRAM_COOKIES_PATH,
+
+            # Stability for serverless
             "source_address": "0.0.0.0",
-            # FIX FOR INSTAGRAM ERROR: Masquerade as the Instagram iOS App
-            # This bypasses the strict login wall often seen on the web version
-            "extractor_args": {
-                "instagram": {
-                    "imp_user_agent": ["ios"]
-                }
-            }
+            "extractor_retries": 3,
+            "fragment_retries": 3,
+            "skip_unavailable_fragments": True,
         }
 
         if download_type == "audio":
-            # Best audio, usually m4a or webm. 
-            # We avoid 'mp3' conversion because Vercel doesn't have FFmpeg installed.
             ydl_opts["format"] = "bestaudio/best"
         else:
-            # Best video that is compatible (mp4)
             ydl_opts["format"] = "mp4/best"
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            # Update file_id with the actual extension yt-dlp chose if it changed
-            actual_ext = info.get('ext', ext)
-            file_id = f"{file_id}.{actual_ext}"
+            ext = info.get("ext", "mp4")
+            filename = f"{file_id}.{ext}"
 
-        return jsonify({"download_url": f"/file/{file_id}"})
+        return jsonify({"download_url": f"/file/{filename}"})
 
     except Exception as e:
-        print(f"Error: {e}") 
+        print("Download error:", e)
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/file/<filename>")
 def serve_file(filename):
     try:
         path = os.path.join(DOWNLOAD_FOLDER, filename)
         if not os.path.exists(path):
-             return jsonify({"error": "File not found or expired"}), 404
+            return jsonify({"error": "File not found or expired"}), 404
         return send_file(path, as_attachment=True)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
