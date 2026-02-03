@@ -3,136 +3,84 @@ from flask_cors import CORS
 import yt_dlp
 import os
 import time
-import base64
-
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 app = Flask(__name__, static_folder=".", template_folder=".")
+CORS(app)
 
-# 🔐 Lock CORS to your frontend only
-CORS(app, origins=[
-    "https://your-site.vercel.app"  # ← CHANGE THIS
-])
-
-# 🔒 Rate limiter (serverless-safe)
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["100 per hour"]
-)
-
-# Vercel writable directory
+# VERCEL FIX: Use /tmp directory for temporary storage
 DOWNLOAD_FOLDER = "/tmp"
-INSTAGRAM_COOKIES_PATH = "/tmp/instagram_cookies.txt"
-
-# Limit payload size (anti-abuse)
-app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024  # 2MB
-
-
-# 🔑 API KEY CHECK
-def require_api_key(req):
-    api_key = req.headers.get("X-API-Key")
-    return api_key and api_key == os.getenv("API_KEY")
-
-
-def ensure_cookies_file():
-    """
-    Writes Base64-decoded Instagram cookies from env to /tmp
-    """
-    cookies_b64 = os.getenv("INSTAGRAM_COOKIES_B64")
-    if not cookies_b64:
-        raise RuntimeError("Instagram cookies not found in environment variables")
-
-    data = base64.b64decode(cookies_b64)
-    with open(INSTAGRAM_COOKIES_PATH, "wb") as f:
-        f.write(data)
-
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
-
 @app.route("/download", methods=["POST"])
-@limiter.limit("5 per minute")  # 🚦 per-IP rate limit
 def download_media():
-
-    # 🔐 API key protection
-    if not require_api_key(request):
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.json or {}
+    data = request.json
     url = data.get("url")
-    download_type = data.get("type", "video")
+    download_type = data.get("type", "video") 
 
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    # 🔎 Allow only Instagram
-    if "instagram.com" not in url:
-        return jsonify({"error": "Only Instagram URLs are allowed"}), 400
-
     try:
-        # Soft delay (anti-detection)
-        time.sleep(2)
-
-        ensure_cookies_file()
-
         file_id = str(int(time.time()))
+        ext = "mp4" if download_type == "video" else "m4a"
+        output_path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.{ext}")
 
         ydl_opts = {
             "outtmpl": os.path.join(DOWNLOAD_FOLDER, f"{file_id}.%(ext)s"),
             "quiet": True,
             "noplaylist": True,
-            "cachedir": "/tmp",
-            "cookiefile": INSTAGRAM_COOKIES_PATH,
-
-            # Serverless stability
+            "cachedir": "/tmp", 
             "source_address": "0.0.0.0",
-            "extractor_retries": 3,
-            "fragment_retries": 3,
-            "skip_unavailable_fragments": True,
+            # User-Agent to look like a real browser
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            },
+            "extractor_args": {
+                "instagram": {
+                    "imp_user_agent": ["ios"]
+                },
+                "youtube": {
+                    "skip": ["dash", "hls"] # Skip streaming formats that require ffmpeg merging
+                }
+            }
         }
 
+        # Check for cookies.txt
+        if os.path.exists("cookies.txt"):
+            ydl_opts["cookiefile"] = "cookies.txt"
+
         if download_type == "audio":
+            # Best audio (m4a/webm)
             ydl_opts["format"] = "bestaudio/best"
         else:
-            ydl_opts["format"] = "mp4/best"
+            # CRITICAL FOR YOUTUBE ON VERCEL:
+            # We ask for 'best[ext=mp4]' which looks for the best *single file* (video+audio) in mp4.
+            # If we just asked for 'bestvideo', it might give us a video-only stream that needs ffmpeg to merge.
+            ydl_opts["format"] = "best[ext=mp4]/best"
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            ext = info.get("ext", "mp4")
-            filename = f"{file_id}.{ext}"
+            actual_ext = info.get('ext', ext)
+            file_id = f"{file_id}.{actual_ext}"
 
-        return jsonify({"download_url": f"/file/{filename}"})
+        return jsonify({"download_url": f"/file/{file_id}"})
 
     except Exception as e:
-        print("Download error:", e)
-        return jsonify({"error": "Download failed"}), 500
-
+        print(f"Error: {e}") 
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/file/<filename>")
-@limiter.limit("20 per hour")
 def serve_file(filename):
     try:
         path = os.path.join(DOWNLOAD_FOLDER, filename)
         if not os.path.exists(path):
-            return jsonify({"error": "File not found or expired"}), 404
+             return jsonify({"error": "File not found or expired"}), 404
         return send_file(path, as_attachment=True)
-    except Exception:
-        return jsonify({"error": "File error"}), 500
-
-
-# 🔍 TEMP DEBUG (REMOVE AFTER CONFIRMING)
-@app.route("/debug/env")
-def debug_env():
-    val = os.getenv("INSTAGRAM_COOKIES_B64")
-    return jsonify({
-        "exists": bool(val),
-        "length": len(val) if val else 0
-    })
-
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
