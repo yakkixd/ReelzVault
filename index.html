@@ -4,9 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enigma Universal - Downloader</title>
+    <link rel="icon" type="image/x-icon" href="favi.ico">
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
     
     <style>
@@ -33,18 +38,11 @@
     <div id="ui-layer" class="px-4">
         <div class="pro-card w-full max-w-md p-8 flex flex-col items-center text-center relative overflow-hidden">
             <div class="mb-6 z-10 w-full flex flex-col items-center">
-                <!-- Header Icons -->
-                <div class="flex gap-2 mb-4">
-                    <div class="w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-lg shadow-gray-200">
-                        <i data-lucide="instagram" class="w-6 h-6 text-white"></i>
-                    </div>
-                    <div class="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-200">
-                        <i data-lucide="youtube" class="w-6 h-6 text-white"></i>
-                    </div>
+                <div class="w-14 h-14 bg-black rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-gray-200">
+                    <i data-lucide="globe" class="w-7 h-7 text-white"></i>
                 </div>
-                
-                <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">ReelzVault</h1>
-                <p class="text-slate-500 mt-2 text-sm font-medium">Reels, YouTube, Shorts & TikTok.</p>
+                <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">Enigma Universal</h1>
+                <p class="text-slate-500 mt-2 text-sm font-medium">Download from Insta, YouTube, TikTok & more.</p>
             </div>
 
             <div class="w-full space-y-4 z-10">
@@ -56,7 +54,7 @@
 
                 <div class="relative group text-left">
                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i data-lucide="link" class="w-5 h-5 text-slate-400"></i></div>
-                    <input type="text" id="urlInput" placeholder="Paste YouTube or Insta link..." class="pro-input w-full py-3.5 pl-11 pr-4 text-sm font-medium" autocomplete="off">
+                    <input type="text" id="urlInput" placeholder="Paste any video link..." class="pro-input w-full py-3.5 pl-11 pr-4 text-sm font-medium" autocomplete="off">
                 </div>
                 <button onclick="processDownload()" id="downloadBtn" class="btn-pro w-full py-3.5 flex items-center justify-center gap-2 group">
                     <span id="btnText">Download Video</span> <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-0.5 transition-transform"></i>
@@ -155,23 +153,21 @@
             downloadBtn.classList.add('hidden'); loadingState.classList.remove('hidden'); loadingState.classList.add('flex'); urlInput.value = "";
 
             try {
-                // FIXED: URL CONSTRUCTION LOGIC
-                // 1. Get the Current Path (e.g. "/reels" or "/")
-                const currentPath = window.location.pathname.replace(/\/$/, ''); 
-                
-                // 2. Detect Local Development (Port 5500 vs 5001)
+                const currentPath = window.location.pathname.replace(/\/$/, '');
                 const isLocalFrontend = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '5001';
                 
-                // 3. Build API URL
                 const apiUrl = isLocalFrontend 
                     ? 'http://127.0.0.1:5001/download' 
                     : `${window.location.origin}${currentPath}/download`;
 
                 const res = await fetch(apiUrl, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url: url, type: currentMode }) 
-                });
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "X-API-Key": "IGDL_8f92a1c9e4d74e8dbfa8c3d6e12a7b90c"
+                    },
+                    body: JSON.stringify({ url: url, type: currentMode })
+                }); 
 
                 if (res.status === 405) throw new Error("405 Error: Backend config issue or Port Blocked.");
 
