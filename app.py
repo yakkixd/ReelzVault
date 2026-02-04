@@ -3,84 +3,82 @@ from flask_cors import CORS
 import yt_dlp
 import os
 import time
+import base64
 
 app = Flask(__name__, static_folder=".", template_folder=".")
 CORS(app)
 
-# VERCEL FIX: Use /tmp directory for temporary storage
 DOWNLOAD_FOLDER = "/tmp"
+COOKIES_PATH = "/tmp/cookies.txt"
+
+
+def ensure_cookies_file():
+    cookies_b64 = os.getenv("COOKIES_B64")
+    if not cookies_b64:
+        raise RuntimeError("Cookies not found in environment variables")
+
+    with open(COOKIES_PATH, "wb") as f:
+        f.write(base64.b64decode(cookies_b64))
+
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
+
 @app.route("/download", methods=["POST"])
 def download_media():
-    data = request.json
+    data = request.json or {}
     url = data.get("url")
-    download_type = data.get("type", "video") 
+    download_type = data.get("type", "video")
 
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
     try:
+        ensure_cookies_file()
+
         file_id = str(int(time.time()))
-        ext = "mp4" if download_type == "video" else "m4a"
-        output_path = os.path.join(DOWNLOAD_FOLDER, f"{file_id}.{ext}")
 
         ydl_opts = {
             "outtmpl": os.path.join(DOWNLOAD_FOLDER, f"{file_id}.%(ext)s"),
             "quiet": True,
             "noplaylist": True,
-            "cachedir": "/tmp", 
+            "cachedir": "/tmp",
+            "cookiefile": COOKIES_PATH,
             "source_address": "0.0.0.0",
-            # User-Agent to look like a real browser
+            "extractor_retries": 3,
+            "fragment_retries": 3,
+            "skip_unavailable_fragments": True,
             "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            },
-            "extractor_args": {
-                "instagram": {
-                    "imp_user_agent": ["ios"]
-                },
-                "youtube": {
-                    "skip": ["dash", "hls"] # Skip streaming formats that require ffmpeg merging
-                }
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
             }
         }
 
-        # Check for cookies.txt
-        if os.path.exists("cookies.txt"):
-            ydl_opts["cookiefile"] = "cookies.txt"
-
         if download_type == "audio":
-            # Best audio (m4a/webm)
             ydl_opts["format"] = "bestaudio/best"
         else:
-            # CRITICAL FOR YOUTUBE ON VERCEL:
-            # We ask for 'best[ext=mp4]' which looks for the best *single file* (video+audio) in mp4.
-            # If we just asked for 'bestvideo', it might give us a video-only stream that needs ffmpeg to merge.
             ydl_opts["format"] = "best[ext=mp4]/best"
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            actual_ext = info.get('ext', ext)
-            file_id = f"{file_id}.{actual_ext}"
+            ext = info.get("ext", "mp4")
+            filename = f"{file_id}.{ext}"
 
-        return jsonify({"download_url": f"/file/{file_id}"})
+        return jsonify({"download_url": f"/file/{filename}"})
 
     except Exception as e:
-        print(f"Error: {e}") 
-        return jsonify({"error": str(e)}), 500
+        print("Download error:", e)
+        return jsonify({"error": "Download failed"}), 500
+
 
 @app.route("/file/<filename>")
 def serve_file(filename):
-    try:
-        path = os.path.join(DOWNLOAD_FOLDER, filename)
-        if not os.path.exists(path):
-             return jsonify({"error": "File not found or expired"}), 404
-        return send_file(path, as_attachment=True)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    path = os.path.join(DOWNLOAD_FOLDER, filename)
+    if not os.path.exists(path):
+        return jsonify({"error": "File not found or expired"}), 404
+    return send_file(path, as_attachment=True)
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
